@@ -1,7 +1,8 @@
-
 const sheetID = "1gYBzv3UDQ2i1vSvsJcZJCxxmwxz409FpieLlEQ6ySKY";
 const sheetName = "Sheet1";
 const sheetURL = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
+
+let allProducts = [];
 
 fetch(sheetURL)
   .then(response => response.text())
@@ -12,7 +13,7 @@ fetch(sheetURL)
       return { name, image, link, tags };
     });
 
-    window.allProducts = products;
+    allProducts = products;
     displayProducts(products);
   });
 
@@ -32,11 +33,52 @@ function displayProducts(products) {
   });
 }
 
+// Search filter
 document.getElementById("searchInput").addEventListener("input", function () {
   const searchText = this.value.toLowerCase();
-  const filtered = window.allProducts.filter(product =>
+  const filtered = allProducts.filter(product =>
     product.name.toLowerCase().includes(searchText) ||
     (product.tags && product.tags.toLowerCase().includes(searchText))
   );
   displayProducts(filtered);
+});
+
+// Navigation buttons
+const navHomeBtn = document.getElementById("nav-home");
+const navAboutBtn = document.getElementById("nav-about");
+const aboutSection = document.getElementById("about-section");
+const productList = document.getElementById("product-list");
+const searchInput = document.getElementById("searchInput");
+const playlistsSection = document.getElementById("playlists");
+
+navHomeBtn.addEventListener("click", () => {
+  navHomeBtn.classList.add("active");
+  navAboutBtn.classList.remove("active");
+  aboutSection.style.display = "none";
+  productList.style.display = "grid";
+  playlistsSection.style.display = "block";
+  searchInput.style.display = "block";
+  displayProducts(allProducts);
+});
+
+navAboutBtn.addEventListener("click", () => {
+  navAboutBtn.classList.add("active");
+  navHomeBtn.classList.remove("active");
+  aboutSection.style.display = "block";
+  productList.style.display = "none";
+  playlistsSection.style.display = "none";
+  searchInput.style.display = "none";
+});
+
+// Playlist buttons to filter products by category
+const playlistButtons = document.querySelectorAll(".playlist-btn");
+
+playlistButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    const category = button.getAttribute("data-category");
+    const filtered = allProducts.filter(product =>
+      product.tags && product.tags.toLowerCase().includes(category.toLowerCase())
+    );
+    displayProducts(filtered);
+  });
 });
