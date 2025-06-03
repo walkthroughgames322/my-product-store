@@ -3,19 +3,63 @@ const sheetName = "Sheet1";
 const sheetURL = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
 
 let allProducts = [];
+let categories = new Set();
 
 fetch(sheetURL)
   .then(response => response.text())
   .then(csvText => {
-    const rows = csvText.split("\n").slice(1);
-    const products = rows.map(row => {
-      const [name, image, link, tags] = row.split(",");
+    const rows = csvText.trim().split("\n").slice(1); // skip header row
+    allProducts = rows.map(row => {
+      // split by comma, but handle commas inside quotes if needed
+      const parts = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+      const name = parts[0]?.trim();
+      const image = parts[1]?.trim();
+      const link = parts[2]?.trim();
+      const tags = parts[3]?.trim().toLowerCase() || "";
+      if (tags) {
+        tags.split(",").forEach(tag => categories.add(tag.trim()));
+      }
       return { name, image, link, tags };
     });
 
-    allProducts = products;
-    displayProducts(products);
+    createPlaylistButtons();
+    displayProducts(allProducts);
   });
+
+function createPlaylistButtons() {
+  const playlistsSection = document.getElementById("playlists");
+  playlistsSection.innerHTML = "";
+
+  // Add "All" button to show all products
+  const allBtn = document.createElement("button");
+  allBtn.textContent = "All";
+  allBtn.className = "playlist-btn active";
+  allBtn.addEventListener("click", () => {
+    setActiveButton(allBtn);
+    displayProducts(allProducts);
+  });
+  playlistsSection.appendChild(allBtn);
+
+  // Create button for each unique category
+  categories.forEach(category => {
+    const btn = document.createElement("button");
+    btn.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+    btn.className = "playlist-btn";
+    btn.addEventListener("click", () => {
+      setActiveButton(btn);
+      const filtered = allProducts.filter(product => product.tags.includes(category));
+      displayProducts(filtered);
+    });
+    playlistsSection.appendChild(btn);
+  });
+}
+
+// Highlight the active playlist button
+function setActiveButton(activeBtn) {
+  const buttons = document.querySelectorAll(".playlist-btn");
+  buttons.forEach(btn => btn.classList.remove("active"));
+  activeBtn.classList.add("active");
+}
 
 function displayProducts(products) {
   const productList = document.getElementById("product-list");
@@ -33,52 +77,25 @@ function displayProducts(products) {
   });
 }
 
-// Search filter
+// Search filtering on currently displayed products and active category
 document.getElementById("searchInput").addEventListener("input", function () {
   const searchText = this.value.toLowerCase();
-  const filtered = allProducts.filter(product =>
-    product.name.toLowerCase().includes(searchText) ||
-    (product.tags && product.tags.toLowerCase().includes(searchText))
-  );
-  displayProducts(filtered);
-});
+  // Find currently active category
+  const activeBtn = document.querySelector(".playlist-btn.active");
+  const activeCategory = activeBtn ? activeBtn.textContent.toLowerCase() : "";
 
-// Navigation buttons
-const navHomeBtn = document.getElementById("nav-home");
-const navAboutBtn = document.getElementById("nav-about");
-const aboutSection = document.getElementById("about-section");
-const productList = document.getElementById("product-list");
-const searchInput = document.getElementById("searchInput");
-const playlistsSection = document.getElementById("playlists");
-
-navHomeBtn.addEventListener("click", () => {
-  navHomeBtn.classList.add("active");
-  navAboutBtn.classList.remove("active");
-  aboutSection.style.display = "none";
-  productList.style.display = "grid";
-  playlistsSection.style.display = "block";
-  searchInput.style.display = "block";
-  displayProducts(allProducts);
-});
-
-navAboutBtn.addEventListener("click", () => {
-  navAboutBtn.classList.add("active");
-  navHomeBtn.classList.remove("active");
-  aboutSection.style.display = "block";
-  productList.style.display = "none";
-  playlistsSection.style.display = "none";
-  searchInput.style.display = "none";
-});
-
-// Playlist buttons to filter products by category
-const playlistButtons = document.querySelectorAll(".playlist-btn");
-
-playlistButtons.forEach(button => {
-  button.addEventListener("click", () => {
-    const category = button.getAttribute("data-category");
-    const filtered = allProducts.filter(product =>
-      product.tags && product.tags.toLowerCase().includes(category.toLowerCase())
+  let filtered;
+  if (activeCategory && activeCategory !== "all") {
+    filtered = allProducts.filter(product =>
+      product.tags.includes(activeCategory) &&
+      (product.name.toLowerCase().includes(searchText) ||
+       product.tags.includes(searchText))
     );
-    displayProducts(filtered);
-  });
+  } else {
+    filtered = allProducts.filter(product =>
+      product.name.toLowerCase().includes(searchText) ||
+      product.tags.includes(searchText)
+    );
+  }
+  displayProducts(filtered);
 });
